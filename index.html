@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f2942">
+  <title>Pacientes Sorrifácil</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">+</div>
+        <div><strong>Pacientes Sorrifácil</strong><small>Dr. Ticiano Oliveira</small></div>
+      </div>
+      <nav class="nav">
+        <button class="active" data-view="dashboard"><span class="icon">▦</span> Visão geral</button>
+        <button data-view="patients"><span class="icon">♙</span> Pacientes</button>
+        <button data-view="requests"><span class="icon">☷</span> Solicitações</button>
+        <button data-view="files"><span class="icon">▣</span> Arquivos</button>
+        <button data-view="reports"><span class="icon">⇩</span> Relatórios</button>
+      </nav>
+      <div class="side-note">Uso pessoal e offline.<br>Faça cópias de segurança regularmente.</div>
+    </aside>
+
+    <main>
+      <section class="view active" id="view-dashboard">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
+            <div><h1>Visão geral</h1><p class="subtitle">Acompanhamento dos tratamentos em andamento</p></div>
+          </div>
+          <div class="actions">
+            <button class="btn" onclick="downloadBackup()">⇩ Cópia de segurança</button>
+            <button class="btn primary" onclick="openPatientModal()">＋ Novo paciente</button>
+          </div>
+        </header>
+        <div class="metrics" id="metrics"></div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Pacientes</h2>
+            <div class="toolbar">
+              <input id="dashboardSearch" placeholder="Buscar por nome ou ficha..." oninput="renderDashboardTable()">
+              <select id="dashboardFilter" onchange="renderDashboardTable()">
+                <option value="">Todos os status</option>
+                <option>Aguardando avaliação</option>
+                <option>Prontuário incompleto</option>
+                <option>Aguardando exames</option>
+                <option>Aguardando material</option>
+                <option>Aguardando autorização</option>
+                <option>Tratamento em andamento</option>
+                <option>Tratamento suspenso</option>
+                <option>Tratamento concluído</option>
+                <option>Encaminhado</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Ficha / Paciente</th><th>Situação atual</th><th>Último atendimento</th><th>Próxima etapa</th><th>Prioridade</th></tr></thead>
+            <tbody id="dashboardBody"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-patients">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
+            <div><h1>Pacientes</h1><p class="subtitle">Cadastros e tratamentos acompanhados</p></div>
+          </div>
+          <button class="btn primary" onclick="openPatientModal()">＋ Novo paciente</button>
+        </header>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Lista completa</h2>
+            <div class="toolbar">
+              <input id="patientSearch" placeholder="Buscar por nome ou ficha..." oninput="renderPatients()">
+              <select id="patientFilter" onchange="renderPatients()">
+                <option value="">Todos os status</option>
+                <option>Aguardando avaliação</option><option>Prontuário incompleto</option>
+                <option>Aguardando exames</option><option>Aguardando material</option>
+                <option>Aguardando autorização</option><option>Tratamento em andamento</option>
+                <option>Tratamento suspenso</option><option>Tratamento concluído</option><option>Encaminhado</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Ficha</th><th>Paciente</th><th>Status</th><th>Último atendimento</th><th>Prioridade</th><th></th></tr></thead>
+            <tbody id="patientsBody"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-requests">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
+            <div><h1>Solicitações</h1><p class="subtitle">Materiais, componentes e exames pendentes</p></div>
+          </div>
+          <button class="btn navy" onclick="exportMaterialsWord()">⇩ Exportar para Word</button>
+        </header>
+        <div class="cards-grid" id="requestsGrid"></div>
+      </section>
+
+      <section class="view" id="view-files">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
+            <div><h1>Arquivos</h1><p class="subtitle">Imagens, vídeos e documentos anexados</p></div>
+          </div>
+        </header>
+        <div class="notice">Os anexos ficam guardados somente neste navegador. Inclua-os na cópia de segurança antes de trocar de computador ou limpar o navegador.</div>
+        <div class="files-grid" id="allFilesGrid"></div>
+      </section>
+
+      <section class="view" id="view-reports">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
+            <div><h1>Relatórios</h1><p class="subtitle">Documentos para acompanhamento da central</p></div>
+          </div>
+        </header>
+        <div class="report-options">
+          <article class="report-card"><h3>Relatório geral</h3><p>Todos os pacientes, evoluções, solicitações e pendências.</p><button class="btn navy" onclick="exportGeneralWord()">Gerar Word</button></article>
+          <article class="report-card"><h3>Materiais e solicitações</h3><p>Lista consolidada por paciente para encaminhar à central.</p><button class="btn navy" onclick="exportMaterialsWord()">Gerar Word</button></article>
+          <article class="report-card"><h3>Prontuários incompletos</h3><p>Pacientes com ficha ausente, incompleta ou informação a confirmar.</p><button class="btn navy" onclick="exportIncompleteWord()">Gerar Word</button></article>
+          <article class="report-card"><h3>Cópia de segurança</h3><p>Salva pacientes, evoluções e anexos em um arquivo para restauração.</p><div class="actions"><button class="btn" onclick="downloadBackup()">Baixar cópia</button><button class="btn" onclick="document.getElementById('restoreInput').click()">Restaurar</button></div></article>
+        </div>
+        <input id="restoreInput" type="file" accept=".json,application/json" hidden onchange="restoreBackup(event)">
+      </section>
+
+      <section class="view" id="view-patient-detail">
+        <header class="topbar">
+          <div style="display:flex;gap:11px;align-items:center">
+            <button class="btn" onclick="showView('patients')">← Voltar</button>
+            <div><h1>Ficha do paciente</h1><p class="subtitle">Histórico e acompanhamento individual</p></div>
+          </div>
+        </header>
+        <div id="patientDetail"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="patientModal">
+    <form id="patientForm" onsubmit="savePatient(event)">
+      <div class="modal-head"><h2 id="patientModalTitle">Novo paciente</h2><button type="button" class="close" onclick="closeDialog('patientModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="patientId">
+        <div class="form-grid">
+          <div class="field"><label>Número da ficha</label><input id="patientRecord" required></div>
+          <div class="field"><label>Nome completo</label><input id="patientName" required></div>
+          <div class="field"><label>Telefone (opcional)</label><input id="patientPhone"></div>
+          <div class="field"><label>Prioridade</label><select id="patientPriority"><option>Baixa</option><option selected>Média</option><option>Alta</option></select></div>
+          <div class="field"><label>Situação atual</label><select id="patientStatus">
+            <option>Aguardando avaliação</option><option>Prontuário incompleto</option><option>Aguardando exames</option>
+            <option>Aguardando material</option><option>Aguardando autorização</option><option>Tratamento em andamento</option>
+            <option>Tratamento suspenso</option><option>Tratamento concluído</option><option>Encaminhado</option>
+          </select></div>
+          <div class="field"><label>Profissional anterior (opcional)</label><input id="patientPreviousProfessional"></div>
+          <div class="field full"><label>Próxima etapa</label><input id="patientNextStep"></div>
+          <div class="field full"><label>Observações gerais</label><textarea id="patientNotes"></textarea></div>
+          <div class="field full"><label>Link para prontuário digital (opcional)</label><input id="patientLink" type="url"></div>
+        </div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeDialog('patientModal')">Cancelar</button><button class="btn primary" type="submit">Salvar paciente</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="evolutionModal">
+    <form id="evolutionForm" onsubmit="saveEvolution(event)">
+      <div class="modal-head"><h2 id="evolutionModalTitle">Nova evolução</h2><button type="button" class="close" onclick="closeDialog('evolutionModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="evolutionPatientId">
+        <input type="hidden" id="evolutionId">
+        <div class="form-grid">
+          <div class="field"><label>Data do atendimento</label><input id="evolutionDate" type="date" required></div>
+          <div class="field"><label>Profissional / encaminhamento</label><input id="evolutionProfessional"></div>
+          <div class="field full"><label>O que foi feito</label><textarea id="evolutionDone" required></textarea></div>
+          <div class="field full"><label>O que precisa ser solicitado</label><textarea id="evolutionRequest"></textarea></div>
+          <div class="field full"><label>O que falta fazer</label><textarea id="evolutionPending"></textarea></div>
+          <div class="field full"><label>Observações</label><textarea id="evolutionNotes"></textarea></div>
+          <div class="field"><label>Atualizar situação</label><select id="evolutionStatus">
+            <option>Aguardando avaliação</option><option>Prontuário incompleto</option><option>Aguardando exames</option>
+            <option>Aguardando material</option><option>Aguardando autorização</option><option>Tratamento em andamento</option>
+            <option>Tratamento suspenso</option><option>Tratamento concluído</option><option>Encaminhado</option>
+          </select></div>
+          <div class="field"><label>Atualizar próxima etapa</label><input id="evolutionNextStep"></div>
+        </div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeDialog('evolutionModal')">Cancelar</button><button class="btn primary" id="evolutionSubmitButton" type="submit">Salvar evolução</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="fileModal">
+    <form id="fileForm" onsubmit="saveAttachment(event)">
+      <div class="modal-head"><h2>Adicionar arquivo</h2><button type="button" class="close" onclick="closeDialog('fileModal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="filePatientId">
+        <div class="form-grid">
+          <div class="field full"><label>Arquivos</label><input id="fileInput" type="file" accept="image/*,video/*,.pdf,.doc,.docx" multiple required></div>
+          <div class="field"><label>Data</label><input id="fileDate" type="date" required></div>
+          <div class="field"><label>Descrição</label><input id="fileDescription" placeholder="Ex.: Fotografia clínica inicial"></div>
+        </div>
+        <p class="muted">Você pode selecionar vários arquivos de uma só vez. A data e a descrição informadas serão aplicadas a todos; se a descrição ficar vazia, será usado o nome de cada arquivo. Vídeos muito grandes podem exceder o espaço disponível no navegador.</p>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeDialog('fileModal')">Cancelar</button><button class="btn primary" type="submit">Salvar arquivo</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="viewerModal" class="viewer-dialog" onclose="closeAttachmentViewer()">
+    <div class="modal-head">
+      <h2 id="viewerTitle">Visualizar arquivo</h2>
+      <div class="viewer-toolbar" id="viewerToolbar">
+        <button type="button" class="viewer-tool" onclick="changeImageZoom(-0.15)" title="Reduzir imagem">−</button>
+        <span class="viewer-zoom-label" id="viewerZoomLabel">100%</span>
+        <button type="button" class="viewer-tool" onclick="changeImageZoom(0.15)" title="Ampliar imagem">+</button>
+        <button type="button" class="viewer-tool" onclick="fitViewerImage()" title="Ajustar a imagem ao popup">Ajustar</button>
+        <button type="button" class="viewer-tool" onclick="setImageZoom(1)" title="Mostrar no tamanho original">100%</button>
+      </div>
+      <button type="button" class="close" onclick="closeDialog('viewerModal')">×</button>
+    </div>
+    <div class="modal-body"><div class="viewer-content" id="viewerContent"></div></div>
+  </dialog>
+
+  <dialog id="reportPreviewModal" class="report-preview-dialog" onclose="clearReportPreview()">
+    <div class="modal-head">
+      <h2 id="reportPreviewTitle">Visualizar relatório</h2>
+      <div class="report-preview-actions">
+        <button type="button" class="btn primary" onclick="downloadPreviewedWord()">Baixar Word</button>
+        <button type="button" class="btn" onclick="printPreviewedReport()">Imprimir</button>
+      </div>
+      <button type="button" class="close" onclick="closeDialog('reportPreviewModal')">×</button>
+    </div>
+    <div class="report-preview-body">
+      <iframe id="reportPreviewFrame" class="report-preview-frame" title="Pré-visualização do relatório"></iframe>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="./js/script.js"></script>
+</body>
+</html>

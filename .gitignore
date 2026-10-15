@@ -1,0 +1,14 @@
+# Dados e documentos clínicos ficam fora do repositório
+*.json
+*.pdf
+*.doc
+*.docx
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.mp4
+*.mov
+backups/
+anexos/
+dados/
