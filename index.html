@@ -19,6 +19,7 @@
         <button data-view="patients"><span class="icon">♙</span> Pacientes</button>
         <button data-view="requests"><span class="icon">☷</span> Solicitações</button>
         <button data-view="files"><span class="icon">▣</span> Arquivos</button>
+        <button data-view="catalogs"><span class="icon">▣</span> Catálogos PDF</button>
         <button data-view="reports"><span class="icon">⇩</span> Relatórios</button>
       </nav>
       <div class="side-note">Uso pessoal e offline.<br>Faça cópias de segurança regularmente.</div>
@@ -114,6 +115,15 @@
         <div class="files-grid" id="allFilesGrid"></div>
       </section>
 
+      <section class="view" id="view-catalogs">
+        <header class="topbar"><div><h1>Catálogos PDF</h1><p class="subtitle">Consulta offline de implantes e componentes</p></div>
+          <button class="btn primary" onclick="document.getElementById('catalogInput').click()">＋ Adicionar PDFs</button></header>
+        <input id="catalogInput" type="file" accept="application/pdf,.pdf" multiple hidden onchange="addCatalogs(event)">
+        <section class="panel catalog-panel"><label for="catalogSearch">Buscar catálogo pelo nome</label><input id="catalogSearch" placeholder="Ex.: Neodent, Singular, Epikut…" oninput="renderCatalogs()">
+          <p class="muted">Abra os catálogos desejados para comparar lado a lado. Para buscar códigos ou palavras dentro de um PDF, clique no leitor e use a lupa dele ou Ctrl + F. Se a busca não aparecer, use “Abrir em aba” e Ctrl + F nessa aba. PDFs digitalizados como imagem precisam de OCR.</p>
+          <div id="catalogList"></div></section><div id="catalogReaders" class="catalog-readers"></div>
+      </section>
+
       <section class="view" id="view-reports">
         <header class="topbar">
           <div style="display:flex;gap:11px;align-items:center">
@@ -121,7 +131,12 @@
             <div><h1>Relatórios</h1><p class="subtitle">Documentos para acompanhamento da central</p></div>
           </div>
         </header>
-        <div class="report-options">
+        <section class="panel catalog-panel"><h2>Pasta de dados</h2>
+          <p>Conecte a pasta onde guarda os backups. O sistema lê o JSON mais recente ao conectar e ao reabrir com permissão, e grava os dados em <strong>dados-sorrifacil.json</strong>, com PDFs e anexos na subpasta <strong>arquivos-sorrifacil</strong>. Mantenha ambos juntos.</p>
+          <div class="actions"><button class="btn primary" onclick="connectDataFolder()">Conectar / autorizar pasta</button><button class="btn" onclick="changeDataFolder()">Trocar pasta</button><button class="btn" onclick="reloadFolderData()">Carregar dados da pasta</button><button class="btn" onclick="saveFolderNow()">Salvar agora na pasta</button><button class="btn danger" onclick="disconnectDataFolder()">Desconectar</button></div>
+          <p id="folderStatus" role="status" aria-live="polite">Sem pasta conectada. Os dados continuam salvos neste navegador.</p>
+          <p class="muted">A permissão depende do navegador. Quando for solicitada novamente, clique em Conectar / autorizar pasta. Use um computador por vez; o Seafile sincroniza o arquivo, mas não mescla edições simultâneas.</p>
+        </section><div class="report-options">
           <article class="report-card"><h3>Relatório geral</h3><p>Todos os pacientes, evoluções, solicitações e pendências.</p><button class="btn navy" onclick="exportGeneralWord()">Gerar Word</button></article>
           <article class="report-card"><h3>Materiais e solicitações</h3><p>Lista consolidada por paciente para encaminhar à central.</p><button class="btn navy" onclick="exportMaterialsWord()">Gerar Word</button></article>
           <article class="report-card"><h3>Prontuários incompletos</h3><p>Pacientes com ficha ausente, incompleta ou informação a confirmar.</p><button class="btn navy" onclick="exportIncompleteWord()">Gerar Word</button></article>
@@ -240,5 +255,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="./js/script.js"></script>
+  <script src="./js/offline-tools.js"></script>
 </body>
 </html>
