@@ -30,18 +30,28 @@
         <header class="topbar">
           <div style="display:flex;gap:11px;align-items:center">
             <button class="btn mobile-menu" onclick="toggleMenu()">☰</button>
-            <div><h1>Visão geral</h1><p class="subtitle">Acompanhamento dos tratamentos em andamento</p></div>
+            <div><h1>Visão geral</h1><p class="subtitle" id="dashboardSubtitle">Acompanhamento dos tratamentos em andamento</p></div>
           </div>
           <div class="actions">
-            <button class="btn" onclick="downloadBackup()">⇩ Cópia de segurança</button>
+            <button class="btn" onclick="exportGeneralWord()">⇩ Relatório geral</button>
             <button class="btn primary" onclick="openPatientModal()">＋ Novo paciente</button>
           </div>
         </header>
         <div class="metrics" id="metrics"></div>
+        <div class="dashboard-grid">
+          <section class="panel dashboard-card attention-card">
+            <div class="panel-head dashboard-section-head"><div><span class="eyebrow">Prioridades</span><h2>Atenção necessária</h2></div><button class="text-button" onclick="applyDashboardPreset('attention')">Ver todos</button></div>
+            <div id="attentionList" class="attention-list"></div>
+          </section>
+          <section class="panel dashboard-card">
+            <div class="panel-head dashboard-section-head"><div><span class="eyebrow">Panorama</span><h2>Resumo por situação</h2></div></div>
+            <div id="statusSummary" class="status-summary"></div>
+          </section>
+        </div>
         <section class="panel">
           <div class="panel-head">
-            <h2>Pacientes</h2>
-            <div class="toolbar">
+            <div><span class="eyebrow">Acompanhamento</span><h2>Pacientes</h2><small id="dashboardResultCount" class="muted"></small></div>
+            <div class="toolbar dashboard-toolbar">
               <input id="dashboardSearch" placeholder="Buscar por nome ou ficha..." oninput="renderDashboardTable()">
               <select id="dashboardFilter" onchange="renderDashboardTable()">
                 <option value="">Todos os status</option>
@@ -55,13 +65,27 @@
                 <option>Tratamento concluído</option>
                 <option>Encaminhado</option>
               </select>
+              <select id="dashboardPriority" onchange="renderDashboardTable()"><option value="">Todas as prioridades</option><option>Alta</option><option>Média</option><option>Baixa</option></select>
+              <select id="dashboardSort" onchange="renderDashboardTable()"><option value="attention">Ordenar por atenção</option><option value="oldest">Atualização mais antiga</option><option value="newest">Atualização mais recente</option><option value="name">Nome do paciente</option></select>
+              <label class="check-filter"><input id="dashboardPendingOnly" type="checkbox" onchange="renderDashboardTable()"> Somente com pendência</label>
+              <button class="btn small" onclick="clearDashboardFilters()">Limpar filtros</button>
             </div>
           </div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Ficha / Paciente</th><th>Situação atual</th><th>Último atendimento</th><th>Próxima etapa</th><th>Prioridade</th></tr></thead>
+            <thead><tr><th>Ficha / Paciente</th><th>Situação atual</th><th>Prioridade</th><th>Última evolução</th><th>Tempo sem atualização</th><th>Próxima etapa</th><th></th></tr></thead>
             <tbody id="dashboardBody"></tbody>
           </table></div>
         </section>
+        <div class="dashboard-grid dashboard-bottom-grid">
+          <section class="panel dashboard-card">
+            <div class="panel-head dashboard-section-head"><div><span class="eyebrow">Pendências</span><h2>Solicitações consolidadas</h2></div><button class="text-button" onclick="showView('requests')">Abrir solicitações</button></div>
+            <div id="requestSummary" class="request-summary"></div>
+          </section>
+          <section class="panel dashboard-card">
+            <div class="panel-head dashboard-section-head"><div><span class="eyebrow">Histórico</span><h2>Atividade recente</h2></div></div>
+            <div id="recentActivity" class="activity-list"></div>
+          </section>
+        </div>
       </section>
 
       <section class="view" id="view-patients">

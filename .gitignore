@@ -14,3 +14,11 @@ anexos/
 dados/
 
 arquivos-sorrifacil/
+
+# Dados e documentos pessoais — não enviar ao GitHub
+/Dados/
+/Documentos e relatórios/
+/Catálogos originais/
+
+# Vídeos grandes
+*.mkv

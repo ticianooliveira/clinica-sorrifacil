@@ -1,0 +1,21 @@
+ATUALIZAÇÃO DO SORRIFÁCIL
+
+1. Na versão antiga, baixe uma cópia JSON completa antes de substituir os arquivos.
+2. Copie index.html, README.md, .gitignore e as pastas css e js para a raiz do repositório. Preserve .git.
+3. Abra index.html no Chrome, Edge ou Firefox do computador. No Firefox, use uma janela normal, não privativa.
+4. Se os pacientes não aparecerem, restaure o JSON na aba Relatórios.
+5. No Chrome ou Edge, em Relatórios > Pasta de dados, clique em Conectar / autorizar pasta e escolha a pasta que contém seus backups. No Firefox, use Baixar cópia e Restaurar, pois ele não permite gravação automática em pasta local.
+6. Confirme o carregamento do JSON mais recente se quiser utilizá-lo. Salvar agora grava a versão atual como dados-sorrifacil.json.
+7. Em Catálogos PDF, adicione os PDFs. Eles serão incluídos nas próximas cópias JSON e no arquivo automático.
+8. Antes de fechar, confira a mensagem de gravação na pasta. Se o navegador pedir autorização ao reabrir, renove pelo botão Conectar / autorizar pasta.
+9. Confira pacientes, evoluções, anexos, relatórios e busca em um catálogo PDF.
+
+Guarde JSONs e PDFs em uma pasta de dados fora do repositório. A pasta de código pode continuar sincronizada, mas o banco do navegador não é sincronizado pelo Seafile; o arquivo JSON conectado é a ponte entre computadores. Não edite simultaneamente em computadores diferentes.
+
+Não é necessário servidor nem internet para os recursos locais. A busca de texto dentro do PDF usa o leitor do navegador; se Ctrl+F não funcionar na visualização incorporada, abra o PDF em aba própria.
+
+CORREÇÃO DE INVALID STRING LENGTH
+
+Depois de atualizar, mantenha o mesmo caminho e navegador para reconhecer os PDFs que já adicionou. Clique em Salvar agora na pasta e aguarde a conclusão. O sistema criará arquivos-sorrifacil ao lado de dados-sorrifacil.json. Não carregue um backup antigo antes de salvar os dados e catálogos que estão no navegador. Se a biblioteca já estiver vazia, será necessário recuperá-la de uma cópia que contenha os catálogos ou selecionar os PDFs originais.
+
+Não mova só o JSON automático: copie ou sincronize também arquivos-sorrifacil. O botão de baixar cópia de segurança continua gerando um JSON completo para transporte.
