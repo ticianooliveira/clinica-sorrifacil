@@ -6,6 +6,7 @@ let state = loadState();
 let attachmentCache = [];
 let viewerObjectUrl = null;
 let previewedReport = null;
+let dashboardPreset = "";
 
 // Não dependa de IDs virarem variáveis globais. Chromium costuma aceitar
 // esse atalho, mas o Firefox não o garante, principalmente em páginas file://.
@@ -62,9 +63,13 @@ function cryptoId() {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.patients)) return saved;
+    if (saved && Array.isArray(saved.patients)) {
+      if (!Array.isArray(saved.activity)) saved.activity=[];
+      if (!saved.meta || typeof saved.meta!=="object") saved.meta={};
+      return saved;
+    }
   } catch (_) {}
-  return {patients:[]};
+  return {patients:[],activity:[],meta:{}};
 }
 function initialize() {
   if (!state.patients.length) {
@@ -76,6 +81,8 @@ function initialize() {
   refreshAttachments();
 }
 function persist() {
+  if (!state.meta || typeof state.meta!=="object") state.meta={};
+  state.meta.lastSavedAt=new Date().toISOString();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -101,25 +108,56 @@ function showView(name) {
   if (target) target.classList.add("active");
   document.querySelectorAll(".nav button").forEach(b => b.classList.toggle("active", b.dataset.view===name));
   if (name==="files") refreshAttachments();
+  if (name==="requests") renderRequests();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
 function renderAll() {
-  renderMetrics(); renderDashboardTable(); renderPatients(); renderRequests();
+  renderDashboardHeader(); renderMetrics(); renderAttentionList(); renderStatusSummary(); renderDashboardTable(); renderRequestSummary(); renderRecentActivity(); renderPatients(); renderRequests();
   if (selectedPatientId) renderPatientDetail(selectedPatientId);
 }
 function lastEvolution(p) {
   return [...(p.evolutions||[])].sort((a,b)=>b.date.localeCompare(a.date))[0] || null;
 }
+function daysSince(iso) {
+  if(!iso)return null;
+  const parts=iso.split("-").map(Number); if(parts.length!==3||parts.some(Number.isNaN))return null;
+  const then=new Date(parts[0],parts[1]-1,parts[2],12);
+  const now=new Date(); now.setHours(12,0,0,0);
+  return Math.max(0,Math.floor((now-then)/86400000));
+}
+function patientAge(p) { const last=lastEvolution(p); return last?daysSince(last.date):null; }
+function patientAttention(p) {
+  if(p.status==="Tratamento concluído")return {score:0,reasons:[]};
+  const reasons=[]; let score=0; const age=patientAge(p);
+  if(p.priority==="Alta"){score+=50;reasons.push({text:"Prioridade alta",critical:true});}
+  if(p.status==="Prontuário incompleto"){score+=45;reasons.push({text:"Prontuário incompleto",critical:true});}
+  if(p.status==="Aguardando material"){score+=28;reasons.push({text:"Aguardando material"});}
+  if(p.status==="Aguardando exames"){score+=26;reasons.push({text:"Aguardando exame"});}
+  if(p.status==="Aguardando autorização"){score+=24;reasons.push({text:"Aguardando autorização"});}
+  if(!p.nextStep?.trim()){score+=32;reasons.push({text:"Próxima etapa não informada",critical:true});}
+  if(age===null){score+=40;reasons.push({text:"Sem evolução registrada",critical:true});}
+  else if(age>=60){score+=35;reasons.push({text:`Sem atualização há ${age} dias`,critical:true});}
+  else if(age>=30){score+=20;reasons.push({text:`Sem atualização há ${age} dias`});}
+  return {score,reasons};
+}
+function renderDashboardHeader() {
+  const el=document.getElementById("dashboardSubtitle"); if(!el)return;
+  const today=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+  const saved=state.meta?.lastSavedAt?` · Último salvamento: ${formatDateTime(state.meta.lastSavedAt)}`:"";
+  el.textContent=`${today.charAt(0).toUpperCase()+today.slice(1)}${saved}`;
+}
 function renderMetrics() {
   const all = state.patients;
   const items = [
-    ["Pacientes acompanhados",all.length,""],
-    ["Aguardando materiais",all.filter(p=>p.status==="Aguardando material").length,"warning"],
-    ["Casos prioritários",all.filter(p=>p.priority==="Alta" && p.status!=="Tratamento concluído").length,"danger"],
-    ["Concluídos",all.filter(p=>p.status==="Tratamento concluído").length,"success"]
+    ["all","Pacientes acompanhados",all.length,"","♙","Ver todos"],
+    ["material","Aguardando material",all.filter(p=>p.status==="Aguardando material").length,"warning","◫","Filtrar pacientes"],
+    ["exams","Aguardando exames",all.filter(p=>p.status==="Aguardando exames").length,"warning","⌕","Filtrar pacientes"],
+    ["priority","Casos prioritários",all.filter(p=>p.priority==="Alta" && p.status!=="Tratamento concluído").length,"danger","!","Prioridade alta"],
+    ["incomplete","Prontuários incompletos",all.filter(p=>p.status==="Prontuário incompleto").length,"danger","▤","Revisar fichas"],
+    ["stale","Sem atualização",all.filter(p=>p.status!=="Tratamento concluído"&&(patientAge(p)===null||patientAge(p)>=30)).length,"","◷","30 dias ou mais"]
   ];
-  document.getElementById("metrics").innerHTML = items.map(x=>`<div class="metric ${x[2]}"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("");
+  document.getElementById("metrics").innerHTML = items.map(x=>`<button class="metric ${x[3]} ${dashboardPreset===x[0]?'active':''}" onclick="applyDashboardPreset('${x[0]}')"><span class="metric-icon">${x[4]}</span><span>${x[1]}</span><strong>${x[2]}</strong><small>${x[5]}</small></button>`).join("");
 }
 function filteredPatients(searchId,filterId) {
   const q=(document.getElementById(searchId)?.value||"").trim().toLocaleLowerCase("pt-BR");
@@ -127,14 +165,105 @@ function filteredPatients(searchId,filterId) {
   return [...state.patients].filter(p=>(!q || `${p.name} ${p.record}`.toLocaleLowerCase("pt-BR").includes(q)) && (!f || p.status===f))
     .sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
 }
+function applyDashboardPreset(preset) {
+  dashboardPreset=preset==="all"?"":preset;
+  const status=document.getElementById("dashboardFilter"),priority=document.getElementById("dashboardPriority"),pending=document.getElementById("dashboardPendingOnly");
+  if(status)status.value=preset==="material"?"Aguardando material":preset==="exams"?"Aguardando exames":preset==="incomplete"?"Prontuário incompleto":"";
+  if(priority)priority.value=preset==="priority"?"Alta":"";
+  if(pending)pending.checked=preset==="attention";
+  renderMetrics();renderDashboardTable();
+  document.getElementById("dashboardBody")?.closest(".panel")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function clearDashboardFilters() {
+  dashboardPreset="";
+  for(const id of ["dashboardSearch","dashboardFilter","dashboardPriority"]) {const el=document.getElementById(id);if(el)el.value="";}
+  const sort=document.getElementById("dashboardSort");if(sort)sort.value="attention";
+  const pending=document.getElementById("dashboardPendingOnly");if(pending)pending.checked=false;
+  renderMetrics();renderDashboardTable();
+}
+function dashboardPatients() {
+  const query=(document.getElementById("dashboardSearch")?.value||"").trim().toLocaleLowerCase("pt-BR");
+  const status=document.getElementById("dashboardFilter")?.value||"";
+  const priority=document.getElementById("dashboardPriority")?.value||"";
+  const pending=document.getElementById("dashboardPendingOnly")?.checked||false;
+  const sort=document.getElementById("dashboardSort")?.value||"attention";
+  let rows=state.patients.filter(p=>(!query||`${p.name} ${p.record}`.toLocaleLowerCase("pt-BR").includes(query))&&(!status||p.status===status)&&(!priority||p.priority===priority));
+  if(pending)rows=rows.filter(p=>patientAttention(p).score>0);
+  if(dashboardPreset==="stale")rows=rows.filter(p=>p.status!=="Tratamento concluído"&&(patientAge(p)===null||patientAge(p)>=30));
+  if(dashboardPreset==="attention")rows=rows.filter(p=>patientAttention(p).score>0);
+  const dateValue=p=>lastEvolution(p)?.date||"0000-00-00";
+  rows.sort(sort==="name"?(a,b)=>a.name.localeCompare(b.name,"pt-BR"):sort==="newest"?(a,b)=>dateValue(b).localeCompare(dateValue(a)):sort==="oldest"?(a,b)=>dateValue(a).localeCompare(dateValue(b)):(a,b)=>patientAttention(b).score-patientAttention(a).score||dateValue(a).localeCompare(dateValue(b)));
+  return rows;
+}
+function ageBadge(p) {
+  const days=patientAge(p);if(days===null)return `<span class="age-badge danger">Sem evolução</span>`;
+  const label=days===0?"Hoje":days===1?"1 dia":`${days} dias`;
+  const cls=days>=60?"danger":days>=30?"warning":"";
+  return `<span class="age-badge ${cls}">◷ ${label}</span>`;
+}
 function renderDashboardTable() {
   const el=document.getElementById("dashboardBody"); if(!el)return;
-  const rows=filteredPatients("dashboardSearch","dashboardFilter");
+  const rows=dashboardPatients();
+  const count=document.getElementById("dashboardResultCount");if(count)count.textContent=`${rows.length} ${rows.length===1?'paciente':'pacientes'} exibidos`;
   el.innerHTML=rows.length?rows.map(p=>{
     const last=lastEvolution(p);
     return `<tr><td><button class="patient-link" onclick="openPatient('${p.id}')">${esc(p.record)} · ${esc(p.name)}</button></td>
-      <td>${statusBadge(p.status)}</td><td>${last?formatDate(last.date):"—"}</td><td>${esc(p.nextStep||"Não informada")}</td><td>${priorityBadge(p.priority)}</td></tr>`;
-  }).join(""):`<tr><td colspan="5" class="empty">Nenhum paciente encontrado.</td></tr>`;
+      <td>${statusBadge(p.status)}</td><td>${priorityBadge(p.priority)}</td><td>${last?formatDate(last.date):"—"}</td><td>${ageBadge(p)}</td><td>${esc(p.nextStep||"Não informada")}</td><td class="table-action"><button class="btn small" onclick="openPatient('${p.id}')">Abrir</button></td></tr>`;
+  }).join(""):`<tr><td colspan="7" class="empty">Nenhum paciente encontrado com estes filtros.</td></tr>`;
+}
+function renderAttentionList() {
+  const el=document.getElementById("attentionList");if(!el)return;
+  const rows=state.patients.map(p=>({p,...patientAttention(p)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6);
+  el.innerHTML=rows.length?rows.map(({p,score,reasons})=>`<article class="attention-item ${score>=70?'critical':''}"><span class="attention-dot"></span><div><strong>${esc(p.name)} <span class="muted">· Ficha ${esc(p.record)}</span></strong><p>${esc(p.nextStep||"Próxima etapa não informada")}</p><div class="attention-reasons">${reasons.slice(0,3).map(r=>`<span class="reason-chip ${r.critical?'critical':''}">${esc(r.text)}</span>`).join("")}</div></div><button class="btn small" onclick="openPatient('${p.id}')">Abrir ficha</button></article>`).join(""):`<div class="empty">Nenhum caso exige atenção neste momento.</div>`;
+}
+function statusClass(status) {
+  return status==="Tratamento concluído"?"done":status==="Prontuário incompleto"?"incomplete":status==="Encaminhado"?"forwarded":status?.startsWith("Aguardando")?"waiting":"";
+}
+function filterDashboardStatus(status) {
+  clearDashboardFilters();
+  document.getElementById("dashboardFilter").value=status;
+  renderDashboardTable();
+  document.getElementById("dashboardBody")?.closest(".panel")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderStatusSummary() {
+  const el=document.getElementById("statusSummary");if(!el)return;
+  const total=Math.max(1,state.patients.length);
+  const counts=new Map();for(const p of state.patients)counts.set(p.status||"Não informado",(counts.get(p.status||"Não informado")||0)+1);
+  const rows=[...counts.entries()].sort((a,b)=>b[1]-a[1]);
+  el.innerHTML=rows.length?rows.map(([status,count])=>`<div class="status-row"><div class="status-row-head"><button onclick="filterDashboardStatus('${attr(status)}')">${esc(status)}</button><strong>${count}</strong></div><div class="status-track"><div class="status-fill ${statusClass(status)}" style="width:${Math.max(3,Math.round(count/total*100))}%"></div></div></div>`).join(""):`<div class="empty">Nenhum paciente cadastrado.</div>`;
+}
+function openRequestGroup(status) {
+  showView("requests");
+  const cards=[...document.querySelectorAll("#requestsGrid .simple-card")];
+  cards.forEach(card=>card.hidden=status&&card.dataset.status!==status);
+}
+function renderRequestSummary() {
+  const el=document.getElementById("requestSummary");if(!el)return;
+  const groups=[
+    ["Aguardando material","Materiais e componentes","◫"],
+    ["Aguardando exames","Exames pendentes","⌕"],
+    ["Aguardando autorização","Autorizações","✓"],
+    ["Prontuário incompleto","Fichas a regularizar","▤"]
+  ];
+  el.innerHTML=groups.map(([status,label,icon])=>{const count=state.patients.filter(p=>p.status===status).length;return `<button onclick="openRequestGroup('${status}')"><span>${icon} ${label}</span><strong>${count}</strong></button>`;}).join("");
+}
+function logActivity(type,message,patientId="") {
+  if(!Array.isArray(state.activity))state.activity=[];
+  state.activity.unshift({id:cryptoId(),type,message,patientId,createdAt:new Date().toISOString()});
+  state.activity=state.activity.slice(0,60);
+}
+function activityIcon(type) {return type==="evolution"?"↗":type==="file"?"▣":type==="delete"?"×":type==="status"?"↻":"＋";}
+function relativeTime(iso) {
+  const diff=Math.max(0,Date.now()-new Date(iso).getTime()),minutes=Math.floor(diff/60000);
+  if(minutes<1)return "Agora";if(minutes<60)return `Há ${minutes} min`;
+  const hours=Math.floor(minutes/60);if(hours<24)return `Há ${hours} h`;
+  const days=Math.floor(hours/24);if(days<7)return `Há ${days} ${days===1?'dia':'dias'}`;
+  return new Date(iso).toLocaleDateString("pt-BR");
+}
+function renderRecentActivity() {
+  const el=document.getElementById("recentActivity");if(!el)return;
+  const items=(state.activity||[]).slice(0,6);
+  el.innerHTML=items.length?items.map(a=>`<article class="activity-item"><span class="activity-icon">${activityIcon(a.type)}</span><div><strong>${esc(a.message)}</strong><p>${relativeTime(a.createdAt)}</p></div></article>`).join(""):`<div class="empty">As novas alterações aparecerão aqui.</div>`;
 }
 function renderPatients() {
   const el=document.getElementById("patientsBody"); if(!el)return;
@@ -149,7 +278,7 @@ function renderPatients() {
 function renderRequests() {
   const el=document.getElementById("requestsGrid"); if(!el)return;
   const rows=state.patients.map(p=>({p,e:lastEvolution(p)})).filter(x=>x.e?.request?.trim());
-  el.innerHTML=rows.length?rows.map(({p,e})=>`<article class="simple-card">
+  el.innerHTML=rows.length?rows.map(({p,e})=>`<article class="simple-card" data-status="${attr(p.status)}">
     <h3>${esc(p.record)} · ${esc(p.name)}</h3><p>${statusBadge(p.status)} ${priorityBadge(p.priority)}</p>
     <p style="white-space:pre-line;color:var(--text)">${esc(e.request)}</p>
     <button class="btn small" onclick="openPatient('${p.id}')">Abrir ficha</button>
@@ -234,8 +363,14 @@ function savePatient(ev) {
   const data={record:patientRecord.value.trim(),name:patientName.value.trim(),phone:patientPhone.value.trim(),
     priority:patientPriority.value,status:patientStatus.value,previousProfessional:patientPreviousProfessional.value.trim(),
     nextStep:patientNextStep.value.trim(),notes:patientNotes.value.trim(),link:patientLink.value.trim()};
-  if(id) Object.assign(state.patients.find(x=>x.id===id),data);
-  else state.patients.push({...data,id:cryptoId(),evolutions:[]});
+  if(id) {
+    const current=state.patients.find(x=>x.id===id),oldStatus=current?.status;
+    Object.assign(current,data);
+    logActivity(oldStatus!==data.status?"status":"patient",oldStatus!==data.status?`${data.name}: situação alterada para ${data.status}`:`Cadastro de ${data.name} atualizado`,id);
+  } else {
+    const newId=cryptoId();state.patients.push({...data,id:newId,evolutions:[]});
+    logActivity("patient",`Paciente ${data.name} cadastrado`,newId);
+  }
   persist(); closeDialog("patientModal"); toast("Paciente salvo com sucesso.");
 }
 function openEvolutionModal(patientId,evolutionToEditId="") {
@@ -271,22 +406,24 @@ function saveEvolution(ev) {
   if(savedEvolutionId) {
     const savedEvolution=(p.evolutions||[]).find(e=>e.id===savedEvolutionId); if(!savedEvolution)return;
     Object.assign(savedEvolution,data);
+        logActivity("evolution",`Evolução de ${p.name} atualizada`,p.id);
   } else {
     p.evolutions.push({id:cryptoId(),...data});
+        logActivity("evolution",`Nova evolução adicionada para ${p.name}`,p.id);
   }
   p.status=evolutionStatus.value; p.nextStep=evolutionNextStep.value.trim();
   persist(); closeDialog("evolutionModal"); toast(savedEvolutionId?"Evolução atualizada.":"Evolução adicionada.");
 }
 function deleteEvolution(patientId,evolutionId) {
   if(!confirm("Excluir esta evolução?"))return;
-  const p=state.patients.find(x=>x.id===patientId); p.evolutions=p.evolutions.filter(e=>e.id!==evolutionId);
+  const p=state.patients.find(x=>x.id===patientId); p.evolutions=p.evolutions.filter(e=>e.id!==evolutionId);logActivity("delete",`Evolução excluída de ${p.name}`,p.id);
   persist(); toast("Evolução excluída.");
 }
 async function deletePatient(id) {
   const p=state.patients.find(x=>x.id===id);
   if(!confirm(`Excluir definitivamente a ficha de ${p.name} e seus anexos?`))return;
   const files=await dbGetAll(); for(const f of files.filter(x=>x.patientId===id)) await dbDelete(f.id);
-  state.patients=state.patients.filter(x=>x.id!==id); selectedPatientId=null; persist(); showView("patients"); refreshAttachments(); toast("Paciente excluído.");
+  state.patients=state.patients.filter(x=>x.id!==id); selectedPatientId=null; logActivity("delete",`Paciente ${p.name} excluído`);persist(); showView("patients"); refreshAttachments(); toast("Paciente excluído.");
 }
 function openFileModal(id) {
   fileForm.reset(); filePatientId.value=id; fileDate.value=todayISO(); openDialog(fileModal);
@@ -299,6 +436,7 @@ async function saveAttachment(ev) {
     for(const file of files) {
       await dbPut({id:cryptoId(),patientId:filePatientId.value,date:fileDate.value,description:commonDescription||file.name,name:file.name,type:file.type||"application/octet-stream",size:file.size,blob:file});
     }
+    const patient=state.patients.find(p=>p.id===filePatientId.value);logActivity("file",`${files.length===1?'Arquivo adicionado':`${files.length} arquivos adicionados`}${patient?` à ficha de ${patient.name}`:""}`,filePatientId.value);persist();
     closeDialog("fileModal"); await refreshAttachments(); renderPatientFiles(filePatientId.value);
     toast(files.length===1?"Arquivo anexado.":`${files.length} arquivos anexados.`);
   } catch(err) { alert("Não foi possível guardar o arquivo. O navegador pode estar sem espaço disponível.\\n\\n"+err.message); }
@@ -402,7 +540,8 @@ function downloadAttachment(id) {
 }
 async function deleteAttachment(id) {
   if(!confirm("Excluir este arquivo?"))return;
-  await dbDelete(id); await refreshAttachments(); toast("Arquivo excluído.");
+  const file=attachmentCache.find(x=>x.id===id),patient=state.patients.find(p=>p.id===file?.patientId);
+  await dbDelete(id);logActivity("delete",`Arquivo ${file?.name||""} excluído${patient?` da ficha de ${patient.name}`:""}`,file?.patientId||"");persist();await refreshAttachments(); toast("Arquivo excluído.");
 }
 async function downloadBackup() {
   const files=await dbGetAll();
@@ -486,6 +625,7 @@ function closeDialog(id) {
   else dialog.removeAttribute("open");
 }
 function formatDate(iso) { if(!iso)return"—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; }
+function formatDateTime(iso) { const d=new Date(iso);return Number.isNaN(d.getTime())?"—":d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }
 function todayISO() { const d=new Date(),o=d.getTimezoneOffset(); return new Date(d.getTime()-o*60000).toISOString().slice(0,10); }
 function esc(v="") { return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function attr(v="") { return esc(v); }

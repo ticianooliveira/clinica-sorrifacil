@@ -10,6 +10,9 @@ Sistema local de acompanhamento clínico odontológico.
 - Relatórios gerais, individuais, de materiais e prontuários incompletos.
 - Prévia, impressão e exportação de relatórios em formato .doc baseado em HTML.
 - Exportação e restauração de cópia de segurança JSON com pacientes, evoluções e anexos.
+- Visão geral acionável com seis indicadores clicáveis, casos que exigem atenção, distribuição por situação e solicitações consolidadas.
+- Filtros combinados por situação, prioridade e pendência, com ordenação por atenção ou tempo sem atualização.
+- Histórico local das atividades realizadas após a atualização do painel.
 
 ## Arquivos
 
