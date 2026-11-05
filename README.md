@@ -18,9 +18,11 @@ Sistema local de acompanhamento clínico odontológico.
 - js/script.js: funções clínicas e armazenamento local.
 - js/offline-tools.js: conexão com pasta, cópias JSON e biblioteca de catálogos PDF.
 
-## Uso offline
+## Uso offline e navegadores
 
-Abra index.html diretamente em um navegador de computador compatível com localStorage, IndexedDB e dialog. Mantenha css e js junto do HTML. Não requer dependências externas nem servidor. Links para prontuários externos precisam de acesso ao destino. A compatibilidade do armazenamento de arquivos locais depende do navegador.
+Abra index.html diretamente no Chrome, Edge ou Firefox. Mantenha css e js junto do HTML. Não requer dependências externas nem servidor. Links para prontuários externos precisam de acesso ao destino. No Firefox, use uma janela normal (não privativa) para que localStorage e IndexedDB preservem pacientes, anexos e catálogos.
+
+O cadastro, as evoluções, os anexos, os catálogos, os relatórios, a cópia de segurança e a restauração funcionam nos três navegadores. A conexão automática com uma pasta pelo botão Pasta de dados depende da File System Access API, que o Firefox não oferece. Nesse navegador, transfira os dados pelos botões Baixar cópia e Restaurar. Chrome e Edge continuam oferecendo também a gravação automática na pasta conectada.
 
 ## Dados e migração
 

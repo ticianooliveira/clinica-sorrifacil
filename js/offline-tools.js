@@ -14,10 +14,16 @@ const catalogReaders = new Map();
 
 function toolsDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(LOCAL_TOOLS_DB, 1);
+    if (!self.indexedDB) {
+      reject(new Error('O armazenamento offline não está disponível neste navegador.'));
+      return;
+    }
+    let req;
+    try { req = indexedDB.open(LOCAL_TOOLS_DB, 1); }
+    catch (error) { reject(error); return; }
     req.onupgradeneeded = () => {
-      req.result.createObjectStore('settings');
-      req.result.createObjectStore('catalogs', {keyPath:'id'});
+      if (!req.result.objectStoreNames.contains('settings')) req.result.createObjectStore('settings');
+      if (!req.result.objectStoreNames.contains('catalogs')) req.result.createObjectStore('catalogs', {keyPath:'id'});
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -39,8 +45,8 @@ async function toolsStore(store, action, value, key) {
     tx.onabort = () => { db.close(); reject(tx.error || new Error('Operação cancelada.')); };
   });
 }
-function folderStatus(message) { document.getElementById('folderStatus').textContent = (dataFolder ? 'Pasta atual: ' + dataFolder.name + '. ' : '') + message; }
-function hasPendingFolderChanges() { return localStorage.getItem(FOLDER_DIRTY) === '1'; }
+function folderStatus(message) { const el=document.getElementById('folderStatus'); if(el)el.textContent = (dataFolder ? 'Pasta atual: ' + dataFolder.name + '. ' : '') + message; }
+function hasPendingFolderChanges() { try{return localStorage.getItem(FOLDER_DIRTY) === '1';}catch(_){return false;} }
 function markLocalChange() {
   if (importingLocalData || !dataFolder) return;
   folderRevision++;
@@ -170,7 +176,7 @@ async function loadFolderData(ask=true) {
   folderStatus(`Dados carregados de ${newest.name}. Salvamento automático ativo nesta pasta.`);
 }
 async function connectDataFolder() {
-  if(!window.showDirectoryPicker) {folderStatus('Este navegador não oferece conexão com pasta local. Use Chrome ou Edge no computador. Backup e restauração manual continuam disponíveis.');return;}
+  if(!window.showDirectoryPicker) {folderStatus('O Firefox não permite gravar automaticamente em uma pasta local. Use Baixar cópia e Restaurar para transferir os dados; o restante do sistema continua funcionando offline.');return;}
   try {
     if(dataFolder && await dataFolder.requestPermission({mode:'readwrite'})==='granted') {
       folderAuthorized=true;
@@ -187,7 +193,7 @@ async function connectDataFolder() {
 }
 async function changeDataFolder() {
   if (!window.showDirectoryPicker) {
-    folderStatus('A troca de pasta requer Chrome ou Edge com suporte à conexão de pastas.');
+    folderStatus('O Firefox não permite trocar uma pasta conectada. Use Baixar cópia e Restaurar para transferir os dados.');
     return;
   }
   if (folderSaving || folderChanging) {

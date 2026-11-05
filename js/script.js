@@ -7,6 +7,46 @@ let attachmentCache = [];
 let viewerObjectUrl = null;
 let previewedReport = null;
 
+// Não dependa de IDs virarem variáveis globais. Chromium costuma aceitar
+// esse atalho, mas o Firefox não o garante, principalmente em páginas file://.
+const byId = id => document.getElementById(id);
+const patientModal = byId("patientModal");
+const patientRecord = byId("patientRecord");
+const patientName = byId("patientName");
+const patientPhone = byId("patientPhone");
+const patientPriority = byId("patientPriority");
+const patientStatus = byId("patientStatus");
+const patientPreviousProfessional = byId("patientPreviousProfessional");
+const patientNextStep = byId("patientNextStep");
+const patientNotes = byId("patientNotes");
+const patientLink = byId("patientLink");
+const patientId = byId("patientId");
+const evolutionModal = byId("evolutionModal");
+const evolutionForm = byId("evolutionForm");
+const evolutionPatientId = byId("evolutionPatientId");
+const evolutionId = byId("evolutionId");
+const evolutionModalTitle = byId("evolutionModalTitle");
+const evolutionSubmitButton = byId("evolutionSubmitButton");
+const evolutionDate = byId("evolutionDate");
+const evolutionProfessional = byId("evolutionProfessional");
+const evolutionDone = byId("evolutionDone");
+const evolutionRequest = byId("evolutionRequest");
+const evolutionPending = byId("evolutionPending");
+const evolutionNotes = byId("evolutionNotes");
+const evolutionStatus = byId("evolutionStatus");
+const evolutionNextStep = byId("evolutionNextStep");
+const fileModal = byId("fileModal");
+const fileForm = byId("fileForm");
+const filePatientId = byId("filePatientId");
+const fileDate = byId("fileDate");
+const fileDescription = byId("fileDescription");
+const fileInput = byId("fileInput");
+const viewerModal = byId("viewerModal");
+const viewerTitle = byId("viewerTitle");
+const viewerToolbar = byId("viewerToolbar");
+const viewerContent = byId("viewerContent");
+const viewerZoomLabel = byId("viewerZoomLabel");
+
 // Registros clínicos permanecem no navegador e nas cópias de segurança.
 const initialPatients = [];
 
@@ -36,8 +76,18 @@ function initialize() {
   refreshAttachments();
 }
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    alert("O navegador bloqueou o armazenamento local. No Firefox, abra fora da navegação privativa e permita que o site salve dados.\n\n" + error.message);
+  }
   renderAll();
+}
+
+function openDialog(dialog) {
+  if (!dialog) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
 }
 function bindNavigation() {
   document.querySelectorAll(".nav button").forEach(btn => btn.addEventListener("click", () => {
@@ -176,7 +226,7 @@ function openPatientModal(id="") {
   } else {
     patientPriority.value="Média"; patientStatus.value="Aguardando avaliação";
   }
-  patientModal.showModal();
+  openDialog(patientModal);
 }
 function savePatient(ev) {
   ev.preventDefault();
@@ -210,7 +260,7 @@ function openEvolutionModal(patientId,evolutionToEditId="") {
     evolutionSubmitButton.textContent="Salvar evolução";
     evolutionDate.value=todayISO();
   }
-  evolutionModal.showModal();
+  openDialog(evolutionModal);
 }
 function saveEvolution(ev) {
   ev.preventDefault();
@@ -239,7 +289,7 @@ async function deletePatient(id) {
   state.patients=state.patients.filter(x=>x.id!==id); selectedPatientId=null; persist(); showView("patients"); refreshAttachments(); toast("Paciente excluído.");
 }
 function openFileModal(id) {
-  fileForm.reset(); filePatientId.value=id; fileDate.value=todayISO(); fileModal.showModal();
+  fileForm.reset(); filePatientId.value=id; fileDate.value=todayISO(); openDialog(fileModal);
 }
 async function saveAttachment(ev) {
   ev.preventDefault();
@@ -255,7 +305,13 @@ async function saveAttachment(ev) {
 }
 function openDb() {
   return new Promise((resolve,reject)=>{
-    const req=indexedDB.open(DB_NAME,1);
+    if (!self.indexedDB) {
+      reject(new Error("O armazenamento de anexos não está disponível neste navegador."));
+      return;
+    }
+    let req;
+    try { req=indexedDB.open(DB_NAME,1); }
+    catch (error) { reject(error); return; }
     req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(DB_STORE)) req.result.createObjectStore(DB_STORE,{keyPath:"id"}); };
     req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
   });
@@ -265,7 +321,12 @@ async function dbGetAll() { const db=await openDb(); return txPromise(db.transac
 async function dbDelete(id) { const db=await openDb(); return txPromise(db.transaction(DB_STORE,"readwrite").objectStore(DB_STORE).delete(id)); }
 function txPromise(req) { return new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);}); }
 async function refreshAttachments() {
-  attachmentCache=await dbGetAll();
+  try {
+    attachmentCache=await dbGetAll();
+  } catch (error) {
+    attachmentCache=[];
+    console.warn("Armazenamento de anexos indisponível:", error);
+  }
   renderAllFiles();
   if(selectedPatientId) renderPatientFiles(selectedPatientId);
 }
@@ -303,7 +364,7 @@ function openAttachment(id) {
   } else {
     viewerContent.innerHTML=`<div class="viewer-unavailable"><h3>Visualização não disponível</h3><p>Este tipo de documento não pode ser exibido diretamente pelo navegador.</p><button class="btn" onclick="downloadAttachment('${f.id}')">Baixar para abrir</button></div>`;
   }
-  viewerModal.showModal();
+  openDialog(viewerModal);
 }
 let viewerImageZoom=1;
 function setImageZoom(zoom) {
@@ -399,7 +460,7 @@ function downloadWord(title,body,filename) {
   previewedReport={title,filename,doc};
   document.getElementById("reportPreviewTitle").textContent=title;
   document.getElementById("reportPreviewFrame").srcdoc=doc;
-  document.getElementById("reportPreviewModal").showModal();
+  openDialog(document.getElementById("reportPreviewModal"));
 }
 function downloadPreviewedWord() {
   if(!previewedReport) return;
@@ -419,7 +480,11 @@ function clearReportPreview() {
 function downloadBlob(blob,filename) {
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-function closeDialog(id) { document.getElementById(id).close(); }
+function closeDialog(id) {
+  const dialog=document.getElementById(id); if(!dialog)return;
+  if(typeof dialog.close==="function") dialog.close();
+  else dialog.removeAttribute("open");
+}
 function formatDate(iso) { if(!iso)return"—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; }
 function todayISO() { const d=new Date(),o=d.getTimezoneOffset(); return new Date(d.getTime()-o*60000).toISOString().slice(0,10); }
 function esc(v="") { return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }

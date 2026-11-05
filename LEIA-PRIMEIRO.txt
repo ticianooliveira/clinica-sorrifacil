@@ -2,9 +2,9 @@ ATUALIZAÇÃO DO SORRIFÁCIL
 
 1. Na versão antiga, baixe uma cópia JSON completa antes de substituir os arquivos.
 2. Copie index.html, README.md, .gitignore e as pastas css e js para a raiz do repositório. Preserve .git.
-3. Abra index.html no Chrome ou Edge do computador.
+3. Abra index.html no Chrome, Edge ou Firefox do computador. No Firefox, use uma janela normal, não privativa.
 4. Se os pacientes não aparecerem, restaure o JSON na aba Relatórios.
-5. Em Relatórios > Pasta de dados, clique em Conectar / autorizar pasta e escolha a pasta que contém seus backups.
+5. No Chrome ou Edge, em Relatórios > Pasta de dados, clique em Conectar / autorizar pasta e escolha a pasta que contém seus backups. No Firefox, use Baixar cópia e Restaurar, pois ele não permite gravação automática em pasta local.
 6. Confirme o carregamento do JSON mais recente se quiser utilizá-lo. Salvar agora grava a versão atual como dados-sorrifacil.json.
 7. Em Catálogos PDF, adicione os PDFs. Eles serão incluídos nas próximas cópias JSON e no arquivo automático.
 8. Antes de fechar, confira a mensagem de gravação na pasta. Se o navegador pedir autorização ao reabrir, renove pelo botão Conectar / autorizar pasta.
